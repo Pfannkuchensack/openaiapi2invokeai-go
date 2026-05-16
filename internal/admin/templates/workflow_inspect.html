@@ -1,0 +1,20 @@
+{{define "content"}}
+<h1>Inspect: {{.Filename}}</h1>
+<a href="/admin/workflows">&larr; Back to workflows</a>
+
+<div class="card mt-1">
+  <h3>Nodes ({{len .Nodes}})</h3>
+  <table>
+    <tr><th>Type</th><th>ID</th><th>Key Fields</th></tr>
+    {{range .Nodes}}
+    <tr>
+      <td><strong>{{.Type}}</strong></td>
+      <td class="mono" style="font-size:0.75rem">{{.ID}}</td>
+      <td class="mono" style="font-size:0.75rem">
+        {{range $k, $v := .Fields}}{{$k}}={{truncVal $v}}&nbsp; {{end}}
+      </td>
+    </tr>
+    {{end}}
+  </table>
+</div>
+{{end}}

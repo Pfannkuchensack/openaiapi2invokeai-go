@@ -1,0 +1,39 @@
+{{define "content"}}
+<h1>Dashboard</h1>
+<div class="grid grid-3">
+  <div class="card">
+    <h3>InvokeAI</h3>
+    <p>URL: <span class="mono">{{.InvokeURL}}</span></p>
+    <p>Status: {{if .InvokeOK}}<span class="badge badge-ok">Connected</span>{{else}}<span class="badge badge-err">Unreachable</span>{{end}}</p>
+    {{if .InvokeVersion}}<p>Version: {{.InvokeVersion}}
+      {{if .VersionOK}}<span class="badge badge-ok">OK</span>{{else}}<span class="badge badge-err">Requires {{.MinVersion}}+</span>{{end}}
+    </p>{{end}}
+  </div>
+  <div class="card">
+    <h3>Models</h3>
+    <p><strong>{{.ModelCount}}</strong> registered</p>
+    <a href="/admin/models" class="btn btn-sm mt-1">Manage</a>
+  </div>
+  <div class="card">
+    <h3>Workflows</h3>
+    <p><strong>{{.WorkflowCount}}</strong> uploaded</p>
+    <a href="/admin/workflows" class="btn btn-sm mt-1">Manage</a>
+  </div>
+</div>
+<div class="card">
+  <h3>Queue Status</h3>
+  {{if .QueueStatus}}
+  <table>
+    <tr><th>Pending</th><th>In Progress</th><th>Completed</th><th>Failed</th></tr>
+    <tr>
+      <td>{{.QueueStatus.Pending}}</td>
+      <td>{{.QueueStatus.InProgress}}</td>
+      <td>{{.QueueStatus.Completed}}</td>
+      <td>{{.QueueStatus.Failed}}</td>
+    </tr>
+  </table>
+  {{else}}
+  <p class="text-muted">Could not fetch queue status</p>
+  {{end}}
+</div>
+{{end}}

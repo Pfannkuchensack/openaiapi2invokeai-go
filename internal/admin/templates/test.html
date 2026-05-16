@@ -1,0 +1,44 @@
+{{define "content"}}
+<h1>Test Generation</h1>
+
+<div class="card">
+  <form hx-post="/admin/test/generate" hx-target="#test-result" hx-swap="innerHTML">
+    <div class="grid grid-2">
+      <div class="form-group">
+        <label>Model</label>
+        <select name="model">
+          {{range .Models}}<option value="{{.ID}}">{{.ID}}</option>{{end}}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Size</label>
+        <input type="text" name="size" value="512x512" placeholder="512x512">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Prompt</label>
+      <textarea name="prompt" placeholder="A beautiful landscape..."></textarea>
+    </div>
+    <button type="submit" class="btn">
+      <span class="btn-text">Generate</span>
+      <span class="spinner">Generating...</span>
+    </button>
+  </form>
+</div>
+
+<div class="card">
+  <h3>Result</h3>
+  <div id="test-result">
+    <p class="text-muted">Submit a prompt to generate an image.</p>
+  </div>
+</div>
+{{end}}
+
+{{define "test-result"}}
+{{if .Error}}
+<div class="flash flash-error">{{.Error}}</div>
+{{else}}
+<p>Generated in {{.Duration}}</p>
+<img id="result-image" src="data:image/png;base64,{{.ImageB64}}" alt="Generated image">
+{{end}}
+{{end}}

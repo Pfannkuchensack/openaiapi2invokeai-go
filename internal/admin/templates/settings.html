@@ -1,0 +1,17 @@
+{{define "content"}}
+<h1>Settings</h1>
+<div class="card">
+  <h3>Effective Configuration</h3>
+  <table>
+    <tr><th>Key</th><th>Value</th></tr>
+    <tr><td>listen-ip</td><td class="mono">{{.Config.ListenIP}}</td></tr>
+    <tr><td>port</td><td class="mono">{{.Config.Port}}</td></tr>
+    <tr><td>invoke-url</td><td class="mono">{{.Config.InvokeURL}}</td></tr>
+    <tr><td>data-dir</td><td class="mono">{{.Config.DataDir}}</td></tr>
+    <tr><td>api-key</td><td class="mono">{{if .Config.APIKey}}(set){{else}}(not set){{end}}</td></tr>
+    <tr><td>admin-user</td><td class="mono">{{if .Config.AdminUser}}{{.Config.AdminUser}}{{else}}(not set — open access){{end}}</td></tr>
+    <tr><td>timeout</td><td class="mono">{{.Config.Timeout}}</td></tr>
+    <tr><td>log-level</td><td class="mono">{{.Config.LogLevel}}</td></tr>
+  </table>
+</div>
+{{end}}

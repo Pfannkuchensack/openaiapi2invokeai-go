@@ -1,0 +1,24 @@
+{{define "layout"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.Title}} — invoke-openai-proxy</title>
+  <link rel="stylesheet" href="/admin/static/style.css">
+  <script src="/admin/static/htmx.min.js"></script>
+</head>
+<body>
+  <nav>
+    <a href="/admin/" class="brand">invoke-openai-proxy</a>
+    <a href="/admin/" {{if eq .Nav "dashboard"}}class="active"{{end}}>Dashboard</a>
+    <a href="/admin/workflows" {{if eq .Nav "workflows"}}class="active"{{end}}>Workflows</a>
+    <a href="/admin/models" {{if eq .Nav "models"}}class="active"{{end}}>Models</a>
+    <a href="/admin/setup" {{if eq .Nav "setup"}}class="active"{{end}}>Quick Setup</a>
+    <a href="/admin/test" {{if eq .Nav "test"}}class="active"{{end}}>Test</a>
+    <a href="/admin/settings" {{if eq .Nav "settings"}}class="active"{{end}}>Settings</a>
+  </nav>
+  <div class="container">
+    {{template "content" .}}
+  </div>
+</body>
+</html>{{end}}

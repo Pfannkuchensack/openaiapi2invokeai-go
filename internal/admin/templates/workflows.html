@@ -1,0 +1,41 @@
+{{define "content"}}
+<h1>Workflows</h1>
+
+<div class="card">
+  <h3>Upload Workflow</h3>
+  <form hx-post="/admin/workflows/upload" hx-target="#workflow-list" hx-swap="innerHTML" enctype="multipart/form-data">
+    <div class="form-group">
+      <label>Workflow JSON file</label>
+      <input type="file" name="workflow" accept=".json">
+    </div>
+    <button type="submit" class="btn">Upload</button>
+  </form>
+</div>
+
+<div class="card">
+  <h3>Uploaded Workflows</h3>
+  <div id="workflow-list">
+    {{template "workflow-list" .}}
+  </div>
+</div>
+{{end}}
+
+{{define "workflow-list"}}
+{{if .Workflows}}
+<table>
+  <tr><th>Filename</th><th>Nodes</th><th>Actions</th></tr>
+  {{range .Workflows}}
+  <tr>
+    <td class="mono">{{.Name}}</td>
+    <td>{{.NodeCount}}</td>
+    <td>
+      <a href="/admin/workflows/inspect/{{.Name}}" class="btn btn-sm">Inspect</a>
+      <button hx-delete="/admin/workflows/{{.Name}}" hx-target="#workflow-list" hx-swap="innerHTML" hx-confirm="Delete {{.Name}}?" class="btn btn-sm btn-danger">Delete</button>
+    </td>
+  </tr>
+  {{end}}
+</table>
+{{else}}
+<p>No workflows uploaded yet.</p>
+{{end}}
+{{end}}

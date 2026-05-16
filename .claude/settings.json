@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c ':*)",
+      "Bash(go build:*)",
+      "Bash(go test:*)",
+      "Bash(make build:*)",
+      "Bash(./bin/invoke-openai-proxy --port 8088 --invoke-url http://192.168.178.58:9090 --data-dir /tmp/proxy-test --log-level debug)",
+      "Bash(curl -s -X POST http://127.0.0.1:8088/v1/images/generations -H 'Content-Type: application/json' -d '{\"model\":\"sdxl-test\",\"prompt\":\"a cute cat on a windowsill, sunshine\",\"size\":\"512x512\",\"n\":1}')",
+      "Bash(curl -sL \"https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js\" -o web/admin/htmx.min.js)"
+    ]
+  }
+}

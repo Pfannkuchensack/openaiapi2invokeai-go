@@ -1,0 +1,83 @@
+{{define "content"}}
+<h1>Quick Setup</h1>
+<p>Install a standard workflow preset with one click. Just select your model type and pick the InvokeAI model to use.</p>
+
+<form method="POST" action="/admin/setup/install">
+  <div class="card">
+    <h3>1. Choose Workflow Preset</h3>
+    <div class="form-group">
+      <label>Architecture</label>
+      <select name="preset">
+        {{range .Presets}}
+        <option value="{{.ID}}">{{.Label}}</option>
+        {{end}}
+      </select>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>2. Select InvokeAI Model</h3>
+    {{if .InvokeModels}}
+    <div class="form-group">
+      <label>Available Models</label>
+      <select name="model_key" onchange="var o=this.options[this.selectedIndex]; document.querySelector('[name=model_name]').value=o.dataset.name; document.querySelector('[name=model_hash]').value=o.dataset.hash; document.querySelector('[name=model_base]').value=o.dataset.base">
+        {{range .InvokeModels}}
+        <option value="{{.Key}}" data-name="{{.Name}}" data-hash="{{.Hash}}" data-base="{{.Base}}">{{.Name}} ({{.Base}})</option>
+        {{end}}
+      </select>
+      <input type="hidden" name="model_name" value="{{if .InvokeModels}}{{(index .InvokeModels 0).Name}}{{end}}">
+      <input type="hidden" name="model_hash" value="{{if .InvokeModels}}{{(index .InvokeModels 0).Hash}}{{end}}">
+      <input type="hidden" name="model_base" value="{{if .InvokeModels}}{{(index .InvokeModels 0).Base}}{{end}}">
+    </div>
+    {{else}}
+    <div class="form-group">
+      <label>Model Key (from InvokeAI)</label>
+      <input type="text" name="model_key" placeholder="paste model key UUID from InvokeAI">
+      <input type="hidden" name="model_name" value="">
+    </div>
+    <p style="font-size:0.8rem;color:var(--text-muted)">Could not fetch models from InvokeAI. Enter the key manually.</p>
+    {{end}}
+  </div>
+
+  <div class="card" id="submodels-section">
+    <h3>2b. Sub-Models (Z-Image / Flux2 Klein)</h3>
+    <p style="font-size:0.8rem;color:var(--text-muted)">Only needed for Z-Image and Flux2 Klein presets. Pick the matching Qwen3 encoder for your model size.</p>
+    {{if .Qwen3Encoders}}
+    <div class="form-group">
+      <label>Qwen3 Text Encoder</label>
+      <select name="qwen3_key" onchange="var o=this.options[this.selectedIndex]; document.querySelector('[name=qwen3_name]').value=o.dataset.name; document.querySelector('[name=qwen3_hash]').value=o.dataset.hash">
+        <option value="">-- none (auto) --</option>
+        {{range .Qwen3Encoders}}
+        <option value="{{.Key}}" data-name="{{.Name}}" data-hash="{{.Hash}}">{{.Name}}</option>
+        {{end}}
+      </select>
+      <input type="hidden" name="qwen3_name" value="">
+      <input type="hidden" name="qwen3_hash" value="">
+    </div>
+    {{end}}
+    {{if .FluxVAEs}}
+    <div class="form-group">
+      <label>VAE Model</label>
+      <select name="vae_key" onchange="var o=this.options[this.selectedIndex]; document.querySelector('[name=vae_name]').value=o.dataset.name; document.querySelector('[name=vae_hash]').value=o.dataset.hash">
+        <option value="">-- none (auto) --</option>
+        {{range .FluxVAEs}}
+        <option value="{{.Key}}" data-name="{{.Name}}" data-hash="{{.Hash}}">{{.Name}} ({{.Base}})</option>
+        {{end}}
+      </select>
+      <input type="hidden" name="vae_name" value="">
+      <input type="hidden" name="vae_hash" value="">
+    </div>
+    {{end}}
+  </div>
+
+  <div class="card">
+    <h3>3. Model ID (optional)</h3>
+    <div class="form-group">
+      <label>Custom model ID for OpenAI API (leave empty to use preset default)</label>
+      <input type="text" name="custom_id" placeholder="e.g. my-sdxl">
+    </div>
+  </div>
+
+  <button type="submit" class="btn">Install Preset</button>
+</form>
+{{end}}
