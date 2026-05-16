@@ -367,7 +367,7 @@ func (h *Handler) setup(w http.ResponseWriter, r *http.Request) {
 		case "qwen3_encoder":
 			qwen3Encoders = append(qwen3Encoders, m)
 		case "vae":
-			if m.Base == "flux" || m.Base == "any" {
+			if m.Base == "flux" || m.Base == "flux2" || m.Base == "z-image" || m.Base == "any" {
 				fluxVAEs = append(fluxVAEs, m)
 			}
 		}
