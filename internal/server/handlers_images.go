@@ -59,7 +59,22 @@ func (s *Server) handleImageEdits(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.log.Info("image edit", "model", entry.ID, "prompt", prompt, "n", n, "has_mask", maskData != nil)
+	s.log.Info("image edit", "model", entry.ID, "workflow", workflowFile, "prompt", prompt, "n", n, "has_mask", maskData != nil)
+
+	// A graph refers to images by name, so they have to be stored first.
+	imageName, err := s.invoke.UploadImage(r.Context(), imageData, "input.png")
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, "server_error", "upload image: "+err.Error())
+		return
+	}
+	var maskName string
+	if maskData != nil {
+		maskName, err = s.invoke.UploadImage(r.Context(), maskData, "mask.png")
+		if err != nil {
+			s.writeError(w, http.StatusInternalServerError, "server_error", "upload mask: "+err.Error())
+			return
+		}
+	}
 
 	var images []ImageData
 	for i := 0; i < n; i++ {
@@ -70,22 +85,17 @@ func (s *Server) handleImageEdits(w http.ResponseWriter, r *http.Request) {
 			Seed:   -1,
 		}
 
-		graph, err := workflow.BuildGraph(s.cfg.DataDir, entry, params)
+		graph, err := workflow.BuildGraphFromFile(s.cfg.DataDir, workflowFile, entry, params)
 		if err != nil {
-			// Try with edit workflow file directly
-			graph, err = workflow.BuildGraphFromFile(s.cfg.DataDir, workflowFile, entry, params)
-			if err != nil {
-				s.writeError(w, http.StatusInternalServerError, "server_error", "build graph: "+err.Error())
-				return
-			}
+			s.writeError(w, http.StatusInternalServerError, "server_error", "build graph: "+err.Error())
+			return
 		}
 
-		// Inject image and mask as base64 into the graph
 		if entry.Mapping.Image != "" {
-			workflow.SetGraphField(graph, entry.Mapping.Image, base64.StdEncoding.EncodeToString(imageData))
+			workflow.SetGraphField(graph, entry.Mapping.Image, imageField(imageName))
 		}
-		if maskData != nil && entry.Mapping.Mask != "" {
-			workflow.SetGraphField(graph, entry.Mapping.Mask, base64.StdEncoding.EncodeToString(maskData))
+		if maskName != "" && entry.Mapping.Mask != "" {
+			workflow.SetGraphField(graph, entry.Mapping.Mask, imageField(maskName))
 		}
 
 		imgData, err := s.generateImage(r.Context(), graph)
@@ -145,7 +155,13 @@ func (s *Server) handleImageVariations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.log.Info("image variation", "model", entry.ID, "n", n)
+	s.log.Info("image variation", "model", entry.ID, "workflow", workflowFile, "n", n)
+
+	imageName, err := s.invoke.UploadImage(r.Context(), imageData, "input.png")
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, "server_error", "upload image: "+err.Error())
+		return
+	}
 
 	var images []ImageData
 	for i := 0; i < n; i++ {
@@ -162,9 +178,8 @@ func (s *Server) handleImageVariations(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Inject image
 		if entry.Mapping.Image != "" {
-			workflow.SetGraphField(graph, entry.Mapping.Image, base64.StdEncoding.EncodeToString(imageData))
+			workflow.SetGraphField(graph, entry.Mapping.Image, imageField(imageName))
 		}
 
 		// Set high denoising for variations
@@ -191,6 +206,11 @@ func (s *Server) handleImageVariations(w http.ResponseWriter, r *http.Request) {
 }
 
 // --- Helpers ---
+
+// imageField builds the ImageField shape InvokeAI expects for image inputs.
+func imageField(imageName string) map[string]any {
+	return map[string]any{"image_name": imageName}
+}
 
 func (s *Server) resolveModel(modelID string) (workflow.ModelEntry, bool) {
 	if modelID == "" {

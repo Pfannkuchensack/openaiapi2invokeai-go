@@ -7,7 +7,10 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
+	"net/textproto"
+	"strings"
 	"time"
 )
 
@@ -69,6 +72,68 @@ func (c *Client) EnqueueBatch(ctx context.Context, graph Graph) (*EnqueueBatchRe
 
 	c.log.Debug("batch enqueued", "batch_id", result.Batch.BatchID, "items", result.Enqueued)
 	return &result, nil
+}
+
+// UploadImage stores an image in InvokeAI and returns its image_name, which is
+// what an ImageField in a graph refers to. Graph fields cannot carry raw image
+// bytes, so any input image has to be uploaded first.
+func (c *Client) UploadImage(ctx context.Context, data []byte, filename string) (string, error) {
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition",
+		fmt.Sprintf(`form-data; name="file"; filename=%q`, filename))
+	h.Set("Content-Type", contentTypeFor(data))
+	part, err := mw.CreatePart(h)
+	if err != nil {
+		return "", fmt.Errorf("build upload form: %w", err)
+	}
+	if _, err := part.Write(data); err != nil {
+		return "", fmt.Errorf("write upload form: %w", err)
+	}
+	if err := mw.Close(); err != nil {
+		return "", err
+	}
+
+	url := fmt.Sprintf("%s/api/v1/images/upload?image_category=user&is_intermediate=true", c.baseURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, &body)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("upload image: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		errBody, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("upload image failed (status %d): %s", resp.StatusCode, string(errBody))
+	}
+
+	var dto struct {
+		ImageName string `json:"image_name"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&dto); err != nil {
+		return "", fmt.Errorf("decode upload response: %w", err)
+	}
+	if dto.ImageName == "" {
+		return "", fmt.Errorf("upload returned no image_name")
+	}
+
+	c.log.Debug("image uploaded", "image_name", dto.ImageName, "bytes", len(data))
+	return dto.ImageName, nil
+}
+
+// contentTypeFor sniffs the image type; InvokeAI rejects a wrong one.
+func contentTypeFor(data []byte) string {
+	if ct := http.DetectContentType(data); strings.HasPrefix(ct, "image/") {
+		return ct
+	}
+	return "image/png"
 }
 
 // GetQueueItemStatus polls the status of a queue item.
