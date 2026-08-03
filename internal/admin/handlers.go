@@ -9,9 +9,11 @@ import (
 	"html/template"
 	"io"
 	"log/slog"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/Pfannkuchensack/openaiapi2invokeai-go/internal/config"
@@ -44,9 +46,17 @@ func NewHandler(cfg *config.Config, registry *workflow.Registry, invokeClient *i
 func (h *Handler) funcMap() template.FuncMap {
 	return template.FuncMap{
 		"truncVal": func(v any) string {
-			s := fmt.Sprintf("%v", v)
-			if len(s) > 30 {
-				return s[:30] + "..."
+			var s string
+			// Every JSON number arrives as float64, so a seed would otherwise
+			// render as 8.39414049e+08 instead of 839414049.
+			if f, ok := v.(float64); ok && f == math.Trunc(f) && math.Abs(f) < 1e15 {
+				s = strconv.FormatFloat(f, 'f', -1, 64)
+			} else {
+				s = fmt.Sprintf("%v", v)
+			}
+			// Cut on a rune boundary; prompts contain non-ASCII.
+			if r := []rune(s); len(r) > 30 {
+				return string(r[:30]) + "..."
 			}
 			return s
 		},
