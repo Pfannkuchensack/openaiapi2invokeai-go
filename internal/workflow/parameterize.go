@@ -141,9 +141,15 @@ func ResolveSize(entry ModelEntry, sizeStr string) (int, int, error) {
 		return 0, 0, nil
 	}
 
-	// Check presets first
+	// Check presets first, so a model can define its own "auto" if it wants to
 	if preset, ok := entry.SizePresets[sizeStr]; ok {
 		return preset.Width, preset.Height, nil
+	}
+
+	// OpenAI's own default for gpt-image-1 is "auto", and clients send it
+	// verbatim. It means "you decide", so leave the workflow's size alone.
+	if strings.EqualFold(sizeStr, "auto") {
+		return 0, 0, nil
 	}
 
 	// Try to parse "WxH"

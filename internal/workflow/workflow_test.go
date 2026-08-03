@@ -141,6 +141,9 @@ func TestResolveSize(t *testing.T) {
 		{"512x768", 512, 768, false},
 		{"", 0, 0, false},
 		{"invalid", 0, 0, true},
+		// OpenAI clients default to "auto"; it must not be an error.
+		{"auto", 0, 0, false},
+		{"AUTO", 0, 0, false},
 	}
 
 	for _, tt := range tests {
