@@ -87,6 +87,15 @@ Multipart form: `image`, `model`, `size`, `n`
 ### `GET /healthz`
 Health check endpoint.
 
+## Workflow Files
+
+Two JSON shapes are accepted and both are detected automatically on upload:
+
+- **Editor export** — what *Download Workflow* in the InvokeAI workflow editor produces (`nodes` is an array, field values live under `data.inputs`). It is converted to an API graph the same way the InvokeAI frontend does before enqueueing: notes/current-image nodes and collapsed edges are dropped, and fields fed by an edge stay unset.
+- **API graph** — the raw `enqueue_batch` graph (`nodes` is an object keyed by node ID).
+
+Either way the field paths used in the model registry refer to the graph form, i.e. `nodes.<node-id>.<field>`.
+
 ## Model Registry
 
 Models are defined in `<data-dir>/registry.json`. Each model maps an ID to a workflow file and defines which graph nodes receive which parameters:

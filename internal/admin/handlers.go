@@ -126,6 +126,8 @@ func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 type WorkflowInfo struct {
 	Name      string
 	NodeCount int
+	Format    string
+	Error     string
 }
 
 func (h *Handler) workflows(w http.ResponseWriter, r *http.Request) {
@@ -151,10 +153,11 @@ func (h *Handler) workflowUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate JSON
-	var raw json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		http.Error(w, "invalid JSON: "+err.Error(), http.StatusBadRequest)
+	// Validate that this is a workflow we can turn into a graph, so a bad file
+	// fails here instead of at generation time.
+	parsed, err := workflow.ParseWorkflow(data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -166,7 +169,8 @@ func (h *Handler) workflowUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.log.Info("workflow uploaded", "file", header.Filename)
+	nodes, _ := parsed.Graph["nodes"].(map[string]any)
+	h.log.Info("workflow uploaded", "file", header.Filename, "format", parsed.Format, "nodes", len(nodes))
 
 	// Return updated list (HTMX partial)
 	h.renderFragment(w, "workflow-list", "workflows.html", map[string]any{
@@ -632,8 +636,17 @@ func (h *Handler) listWorkflows() []WorkflowInfo {
 	names, _ := workflow.ListWorkflows(h.cfg.DataDir)
 	var infos []WorkflowInfo
 	for _, name := range names {
-		nodes, _ := workflow.InspectWorkflow(h.cfg.DataDir, name)
-		infos = append(infos, WorkflowInfo{Name: name, NodeCount: len(nodes)})
+		info := WorkflowInfo{Name: name}
+		parsed, err := workflow.LoadWorkflow(h.cfg.DataDir, name)
+		if err != nil {
+			info.Error = err.Error()
+		} else {
+			info.Format = string(parsed.Format)
+			if nodes, ok := parsed.Graph["nodes"].(map[string]any); ok {
+				info.NodeCount = len(nodes)
+			}
+		}
+		infos = append(infos, info)
 	}
 	return infos
 }

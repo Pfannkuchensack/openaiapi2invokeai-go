@@ -7,6 +7,7 @@
     <div class="form-group">
       <label>Workflow JSON file</label>
       <input type="file" name="workflow" accept=".json">
+      <small>Either a workflow exported from the InvokeAI workflow editor (Download Workflow) or a raw API graph. Editor exports are converted automatically.</small>
     </div>
     <button type="submit" class="btn">Upload</button>
   </form>
@@ -23,11 +24,12 @@
 {{define "workflow-list"}}
 {{if .Workflows}}
 <table>
-  <tr><th>Filename</th><th>Nodes</th><th>Actions</th></tr>
+  <tr><th>Filename</th><th>Format</th><th>Nodes</th><th>Actions</th></tr>
   {{range .Workflows}}
   <tr>
     <td class="mono">{{.Name}}</td>
-    <td>{{.NodeCount}}</td>
+    <td>{{if .Error}}<span class="badge badge-err" title="{{.Error}}">unreadable</span>{{else}}{{.Format}}{{end}}</td>
+    <td>{{if .Error}}&mdash;{{else}}{{.NodeCount}}{{end}}</td>
     <td>
       <a href="/admin/workflows/inspect/{{.Name}}" class="btn btn-sm">Inspect</a>
       <button hx-delete="/admin/workflows/{{.Name}}" hx-target="#workflow-list" hx-swap="innerHTML" hx-confirm="Delete {{.Name}}?" class="btn btn-sm btn-danger">Delete</button>

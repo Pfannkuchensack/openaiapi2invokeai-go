@@ -1,11 +1,8 @@
 package workflow
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/rand/v2"
-	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -23,16 +20,11 @@ type Params struct {
 // BuildGraph loads a workflow file and applies parameter substitution based on
 // the model entry's field mapping. Returns the ready-to-enqueue graph.
 func BuildGraph(dataDir string, entry ModelEntry, params Params) (map[string]any, error) {
-	wfPath := filepath.Join(dataDir, "workflows", entry.Workflow)
-	data, err := os.ReadFile(wfPath)
+	parsed, err := LoadWorkflow(dataDir, entry.Workflow)
 	if err != nil {
-		return nil, fmt.Errorf("read workflow %s: %w", entry.Workflow, err)
+		return nil, err
 	}
-
-	var graph map[string]any
-	if err := json.Unmarshal(data, &graph); err != nil {
-		return nil, fmt.Errorf("parse workflow: %w", err)
-	}
+	graph := parsed.Graph
 
 	// Apply defaults first, then explicit params override
 	if entry.Defaults != nil {

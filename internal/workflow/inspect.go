@@ -1,40 +1,40 @@
 package workflow
 
 import (
-	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 )
 
 // NodeInfo describes a node found during workflow inspection.
 type NodeInfo struct {
-	ID   string         `json:"id"`
-	Type string         `json:"type"`
+	ID     string         `json:"id"`
+	Type   string         `json:"type"`
+	Label  string         `json:"label,omitempty"`
 	Fields map[string]any `json:"fields"`
 }
 
 // InspectWorkflow loads a workflow and returns its nodes with their fields,
 // useful for the admin UI to suggest field mappings.
 func InspectWorkflow(dataDir, filename string) ([]NodeInfo, error) {
-	wfPath := filepath.Join(dataDir, "workflows", filename)
-	data, err := os.ReadFile(wfPath)
+	parsed, err := LoadWorkflow(dataDir, filename)
 	if err != nil {
-		return nil, fmt.Errorf("read workflow: %w", err)
+		return nil, err
 	}
 
-	var graph struct {
-		Nodes map[string]map[string]any `json:"nodes"`
-	}
-	if err := json.Unmarshal(data, &graph); err != nil {
-		return nil, fmt.Errorf("parse workflow: %w", err)
-	}
+	graphNodes, _ := parsed.Graph["nodes"].(map[string]any)
 
 	var nodes []NodeInfo
-	for id, node := range graph.Nodes {
+	for id, raw := range graphNodes {
+		node, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+
 		info := NodeInfo{
 			ID:     id,
 			Type:   strVal(node, "type"),
+			Label:  parsed.Labels[id],
 			Fields: make(map[string]any),
 		}
 
@@ -49,6 +49,14 @@ func InspectWorkflow(dataDir, filename string) ([]NodeInfo, error) {
 
 		nodes = append(nodes, info)
 	}
+
+	// Map iteration is random; keep the inspect page stable between reloads.
+	sort.Slice(nodes, func(i, j int) bool {
+		if nodes[i].Type != nodes[j].Type {
+			return nodes[i].Type < nodes[j].Type
+		}
+		return nodes[i].ID < nodes[j].ID
+	})
 
 	return nodes, nil
 }
