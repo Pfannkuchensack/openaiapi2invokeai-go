@@ -2,66 +2,9 @@
 <h1>Models</h1>
 
 <div class="card">
-  <h3>Add / Edit Model</h3>
-  <form hx-post="/admin/models/save" hx-target="#model-list" hx-swap="innerHTML">
-    <div class="grid grid-2">
-      <div class="form-group">
-        <label>Model ID (used in OpenAI requests)</label>
-        <input type="text" name="id" placeholder="e.g. sdxl-fast" required>
-      </div>
-      <div class="form-group">
-        <label>Workflow File</label>
-        <select name="workflow">
-          {{range .Workflows}}<option value="{{.}}">{{.}}</option>{{end}}
-        </select>
-        <small>Used for /v1/images/generations.</small>
-      </div>
-      <div class="form-group">
-        <label>Edit Workflow <span style="color:var(--text-muted)">(optional)</span></label>
-        <select name="edit_workflow">
-          <option value="">&mdash; same as above &mdash;</option>
-          {{range .Workflows}}<option value="{{.}}">{{.}}</option>{{end}}
-        </select>
-        <small>Used for /v1/images/edits. Needs an image input node.</small>
-      </div>
-      <div class="form-group">
-        <label>Variant Workflow <span style="color:var(--text-muted)">(optional)</span></label>
-        <select name="variant_workflow">
-          <option value="">&mdash; same as above &mdash;</option>
-          {{range .Workflows}}<option value="{{.}}">{{.}}</option>{{end}}
-        </select>
-        <small>Used for /v1/images/variations.</small>
-      </div>
-    </div>
-    <h3>Field Mapping</h3>
-    <p style="font-size:0.8rem;color:var(--text-muted)">Format: nodes.&lt;node-id&gt;.&lt;field&gt; &mdash; the Inspect page of a workflow lists every node ID and field.</p>
-    <div class="grid grid-2">
-      <div class="form-group"><label>Prompt</label><input type="text" name="map_prompt" placeholder="nodes.xxx.value"></div>
-      <div class="form-group"><label>Negative</label><input type="text" name="map_negative" placeholder="nodes.xxx.value"></div>
-      <div class="form-group"><label>Width</label><input type="text" name="map_width" placeholder="nodes.xxx.width"></div>
-      <div class="form-group"><label>Height</label><input type="text" name="map_height" placeholder="nodes.xxx.height"></div>
-      <div class="form-group"><label>Seed</label><input type="text" name="map_seed" placeholder="nodes.xxx.seed"></div>
-      <div class="form-group"><label>Steps</label><input type="text" name="map_steps" placeholder="nodes.xxx.steps"></div>
-      <div class="form-group"><label>CFG</label><input type="text" name="map_cfg" placeholder="nodes.xxx.cfg_scale"></div>
-    </div>
-    <h4 style="margin-top:1rem">Image Input <span style="font-weight:400;color:var(--text-muted);font-size:0.8rem">&mdash; for /v1/images/edits and /variations</span></h4>
-    <div class="grid grid-2">
-      <div class="form-group"><label>Image</label><input type="text" name="map_image" placeholder="nodes.xxx.image"></div>
-      <div class="form-group"><label>Mask</label><input type="text" name="map_mask" placeholder="nodes.xxx.image"></div>
-      <div class="form-group"><label>Denoise</label><input type="text" name="map_denoise" placeholder="nodes.xxx.denoising_start"></div>
-    </div>
-    <h3>Size Presets</h3>
-    <div class="form-group">
-      <label>JSON (e.g. {"1024x1024":{"width":1024,"height":1024}})</label>
-      <textarea name="size_presets" placeholder='{"1024x1024":{"width":1024,"height":1024}}'></textarea>
-    </div>
-    <h3>Defaults</h3>
-    <div class="form-group">
-      <label>JSON (e.g. {"steps":20,"cfg":7.5})</label>
-      <textarea name="defaults" placeholder='{"steps":20,"cfg":7.5}'></textarea>
-    </div>
-    <button type="submit" class="btn">Save Model</button>
-  </form>
+  <div id="model-form">
+    {{template "model-form" .}}
+  </div>
 </div>
 
 <div class="card">
@@ -70,6 +13,78 @@
     {{template "model-list" .}}
   </div>
 </div>
+{{end}}
+
+{{define "model-form"}}
+<div style="display:flex;justify-content:space-between;align-items:center">
+  <h3>{{if .Model.ID}}Edit Model: <span class="mono">{{.Model.ID}}</span>{{else}}Add Model{{end}}</h3>
+  {{if .Model.ID}}
+  <button hx-get="/admin/models/new" hx-target="#model-form" hx-swap="innerHTML" class="btn btn-sm">New Model</button>
+  {{end}}
+</div>
+<form hx-post="/admin/models/save" hx-target="#model-list" hx-swap="innerHTML">
+  <div class="grid grid-2">
+    <div class="form-group">
+      <label>Model ID (used in OpenAI requests)</label>
+      <input type="text" name="id" placeholder="e.g. sdxl-fast" value="{{.Model.ID}}" required>
+      {{if .Model.ID}}<small>Changing this saves a copy under the new ID.</small>{{end}}
+    </div>
+    <div class="form-group">
+      <label>Workflow File</label>
+      <select name="workflow">
+        {{range .Workflows}}<option value="{{.}}"{{if eq . $.Model.Workflow}} selected{{end}}>{{.}}</option>{{end}}
+      </select>
+      <small>Used for /v1/images/generations.</small>
+    </div>
+    <div class="form-group">
+      <label>Edit Workflow <span style="color:var(--text-muted)">(optional)</span></label>
+      <select name="edit_workflow">
+        <option value="">&mdash; same as above &mdash;</option>
+        {{range .Workflows}}<option value="{{.}}"{{if eq . $.Model.EditWorkflow}} selected{{end}}>{{.}}</option>{{end}}
+      </select>
+      <small>Used for /v1/images/edits. Needs an image input node.</small>
+    </div>
+    <div class="form-group">
+      <label>Variant Workflow <span style="color:var(--text-muted)">(optional)</span></label>
+      <select name="variant_workflow">
+        <option value="">&mdash; same as above &mdash;</option>
+        {{range .Workflows}}<option value="{{.}}"{{if eq . $.Model.VariantWorkflow}} selected{{end}}>{{.}}</option>{{end}}
+      </select>
+      <small>Used for /v1/images/variations.</small>
+    </div>
+  </div>
+
+  <h3>Field Mapping</h3>
+  <p style="font-size:0.8rem;color:var(--text-muted)">Format: nodes.&lt;node-id&gt;.&lt;field&gt; &mdash; the Inspect page of a workflow lists every node ID and field.</p>
+  <div class="grid grid-2">
+    <div class="form-group"><label>Prompt</label><input type="text" name="map_prompt" placeholder="nodes.xxx.value" value="{{.Model.Mapping.Prompt}}"></div>
+    <div class="form-group"><label>Negative</label><input type="text" name="map_negative" placeholder="nodes.xxx.value" value="{{.Model.Mapping.Negative}}"></div>
+    <div class="form-group"><label>Width</label><input type="text" name="map_width" placeholder="nodes.xxx.width" value="{{.Model.Mapping.Width}}"></div>
+    <div class="form-group"><label>Height</label><input type="text" name="map_height" placeholder="nodes.xxx.height" value="{{.Model.Mapping.Height}}"></div>
+    <div class="form-group"><label>Seed</label><input type="text" name="map_seed" placeholder="nodes.xxx.seed" value="{{.Model.Mapping.Seed}}"></div>
+    <div class="form-group"><label>Steps</label><input type="text" name="map_steps" placeholder="nodes.xxx.steps" value="{{.Model.Mapping.Steps}}"></div>
+    <div class="form-group"><label>CFG</label><input type="text" name="map_cfg" placeholder="nodes.xxx.cfg_scale" value="{{.Model.Mapping.CFG}}"></div>
+  </div>
+
+  <h4 style="margin-top:1rem">Image Input <span style="font-weight:400;color:var(--text-muted);font-size:0.8rem">&mdash; for /v1/images/edits and /variations</span></h4>
+  <div class="grid grid-2">
+    <div class="form-group"><label>Image</label><input type="text" name="map_image" placeholder="nodes.xxx.image" value="{{.Model.Mapping.Image}}"></div>
+    <div class="form-group"><label>Mask</label><input type="text" name="map_mask" placeholder="nodes.xxx.image" value="{{.Model.Mapping.Mask}}"></div>
+    <div class="form-group"><label>Denoise</label><input type="text" name="map_denoise" placeholder="nodes.xxx.denoising_start" value="{{.Model.Mapping.Denoise}}"></div>
+  </div>
+
+  <h3>Size Presets</h3>
+  <div class="form-group">
+    <label>JSON (e.g. {"1024x1024":{"width":1024,"height":1024}})</label>
+    <textarea name="size_presets" placeholder='{"1024x1024":{"width":1024,"height":1024}}'>{{toJSON .Model.SizePresets}}</textarea>
+  </div>
+  <h3>Defaults</h3>
+  <div class="form-group">
+    <label>JSON (e.g. {"steps":20,"cfg":7.5})</label>
+    <textarea name="defaults" placeholder='{"steps":20,"cfg":7.5}'>{{toJSON .Model.Defaults}}</textarea>
+  </div>
+  <button type="submit" class="btn">Save Model</button>
+</form>
 {{end}}
 
 {{define "model-list"}}
@@ -86,6 +101,7 @@
       {{if .Mapping.Image}}<br>edits &middot; variations{{else}}<br><span style="color:var(--text-muted)">no image mapping</span>{{end}}
     </td>
     <td>
+      <button hx-get="/admin/models/edit/{{.ID}}" hx-target="#model-form" hx-swap="innerHTML" class="btn btn-sm">Edit</button>
       <button hx-delete="/admin/models/{{.ID}}" hx-target="#model-list" hx-swap="innerHTML" hx-confirm="Delete model {{.ID}}?" class="btn btn-sm btn-danger">Delete</button>
     </td>
   </tr>

@@ -60,6 +60,20 @@ func (h *Handler) funcMap() template.FuncMap {
 			}
 			return s
 		},
+		// toJSON fills the JSON textareas of the model form. An unset map must
+		// come out empty, not as "null", or saving would echo it back.
+		"toJSON": func(v any) string {
+			b, err := json.Marshal(v)
+			if err != nil {
+				return ""
+			}
+			switch s := string(b); s {
+			case "null", "{}":
+				return ""
+			default:
+				return s
+			}
+		},
 	}
 }
 
@@ -78,6 +92,8 @@ func (h *Handler) Routes() chi.Router {
 	r.Delete("/workflows/{name}", h.workflowDelete)
 	r.Get("/workflows/inspect/{name}", h.workflowInspect)
 	r.Get("/models", h.models)
+	r.Get("/models/new", h.modelNew)
+	r.Get("/models/edit/{id}", h.modelEdit)
 	r.Post("/models/save", h.modelSave)
 	r.Delete("/models/{id}", h.modelDelete)
 	r.Get("/setup", h.setup)
@@ -223,6 +239,32 @@ func (h *Handler) models(w http.ResponseWriter, r *http.Request) {
 		"Title":     "Models",
 		"Nav":       "models",
 		"Models":    h.registry.List(),
+		"Workflows": workflows,
+		"Model":     workflow.ModelEntry{}, // empty form
+	})
+}
+
+// modelNew returns a blank model form (HTMX partial).
+func (h *Handler) modelNew(w http.ResponseWriter, r *http.Request) {
+	workflows, _ := workflow.ListWorkflows(h.cfg.DataDir)
+	h.renderFragment(w, "model-form", "models.html", map[string]any{
+		"Model":     workflow.ModelEntry{},
+		"Workflows": workflows,
+	})
+}
+
+// modelEdit returns the model form prefilled with an existing entry.
+func (h *Handler) modelEdit(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	entry, ok := h.registry.Get(id)
+	if !ok {
+		http.Error(w, fmt.Sprintf("model %q not found", id), http.StatusNotFound)
+		return
+	}
+
+	workflows, _ := workflow.ListWorkflows(h.cfg.DataDir)
+	h.renderFragment(w, "model-form", "models.html", map[string]any{
+		"Model":     entry,
 		"Workflows": workflows,
 	})
 }
