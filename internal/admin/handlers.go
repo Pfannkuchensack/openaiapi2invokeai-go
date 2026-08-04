@@ -231,8 +231,10 @@ func (h *Handler) modelSave(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
 	entry := workflow.ModelEntry{
-		ID:       r.FormValue("id"),
-		Workflow: r.FormValue("workflow"),
+		ID:              r.FormValue("id"),
+		Workflow:        r.FormValue("workflow"),
+		EditWorkflow:    r.FormValue("edit_workflow"),
+		VariantWorkflow: r.FormValue("variant_workflow"),
 		Mapping: workflow.FieldMapping{
 			Prompt:   r.FormValue("map_prompt"),
 			Negative: r.FormValue("map_negative"),
@@ -241,6 +243,9 @@ func (h *Handler) modelSave(w http.ResponseWriter, r *http.Request) {
 			Seed:     r.FormValue("map_seed"),
 			Steps:    r.FormValue("map_steps"),
 			CFG:      r.FormValue("map_cfg"),
+			Image:    r.FormValue("map_image"),
+			Mask:     r.FormValue("map_mask"),
+			Denoise:  r.FormValue("map_denoise"),
 		},
 	}
 

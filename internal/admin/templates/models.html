@@ -14,10 +14,27 @@
         <select name="workflow">
           {{range .Workflows}}<option value="{{.}}">{{.}}</option>{{end}}
         </select>
+        <small>Used for /v1/images/generations.</small>
+      </div>
+      <div class="form-group">
+        <label>Edit Workflow <span style="color:var(--text-muted)">(optional)</span></label>
+        <select name="edit_workflow">
+          <option value="">&mdash; same as above &mdash;</option>
+          {{range .Workflows}}<option value="{{.}}">{{.}}</option>{{end}}
+        </select>
+        <small>Used for /v1/images/edits. Needs an image input node.</small>
+      </div>
+      <div class="form-group">
+        <label>Variant Workflow <span style="color:var(--text-muted)">(optional)</span></label>
+        <select name="variant_workflow">
+          <option value="">&mdash; same as above &mdash;</option>
+          {{range .Workflows}}<option value="{{.}}">{{.}}</option>{{end}}
+        </select>
+        <small>Used for /v1/images/variations.</small>
       </div>
     </div>
     <h3>Field Mapping</h3>
-    <p style="font-size:0.8rem;color:var(--text-muted)">Format: nodes.&lt;node-id&gt;.&lt;field&gt;</p>
+    <p style="font-size:0.8rem;color:var(--text-muted)">Format: nodes.&lt;node-id&gt;.&lt;field&gt; &mdash; the Inspect page of a workflow lists every node ID and field.</p>
     <div class="grid grid-2">
       <div class="form-group"><label>Prompt</label><input type="text" name="map_prompt" placeholder="nodes.xxx.value"></div>
       <div class="form-group"><label>Negative</label><input type="text" name="map_negative" placeholder="nodes.xxx.value"></div>
@@ -26,6 +43,12 @@
       <div class="form-group"><label>Seed</label><input type="text" name="map_seed" placeholder="nodes.xxx.seed"></div>
       <div class="form-group"><label>Steps</label><input type="text" name="map_steps" placeholder="nodes.xxx.steps"></div>
       <div class="form-group"><label>CFG</label><input type="text" name="map_cfg" placeholder="nodes.xxx.cfg_scale"></div>
+    </div>
+    <h4 style="margin-top:1rem">Image Input <span style="font-weight:400;color:var(--text-muted);font-size:0.8rem">&mdash; for /v1/images/edits and /variations</span></h4>
+    <div class="grid grid-2">
+      <div class="form-group"><label>Image</label><input type="text" name="map_image" placeholder="nodes.xxx.image"></div>
+      <div class="form-group"><label>Mask</label><input type="text" name="map_mask" placeholder="nodes.xxx.image"></div>
+      <div class="form-group"><label>Denoise</label><input type="text" name="map_denoise" placeholder="nodes.xxx.denoising_start"></div>
     </div>
     <h3>Size Presets</h3>
     <div class="form-group">
@@ -52,12 +75,16 @@
 {{define "model-list"}}
 {{if .Models}}
 <table>
-  <tr><th>ID</th><th>Workflow</th><th>Prompt Mapping</th><th>Actions</th></tr>
+  <tr><th>ID</th><th>Workflow</th><th>Prompt Mapping</th><th>Endpoints</th><th>Actions</th></tr>
   {{range .Models}}
   <tr>
     <td><strong>{{.ID}}</strong></td>
     <td class="mono">{{.Workflow}}</td>
     <td class="mono" style="font-size:0.75rem">{{.Mapping.Prompt}}</td>
+    <td style="font-size:0.75rem">
+      generations
+      {{if .Mapping.Image}}<br>edits &middot; variations{{else}}<br><span style="color:var(--text-muted)">no image mapping</span>{{end}}
+    </td>
     <td>
       <button hx-delete="/admin/models/{{.ID}}" hx-target="#model-list" hx-swap="innerHTML" hx-confirm="Delete model {{.ID}}?" class="btn btn-sm btn-danger">Delete</button>
     </td>
