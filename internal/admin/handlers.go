@@ -434,13 +434,32 @@ func (h *Handler) setup(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Candidates for every sub-model any preset declares, keyed by model type.
+	byType := map[string][]InvokeModel{}
+	for _, p := range Presets {
+		for _, sm := range p.SubModels {
+			if _, done := byType[sm.ModelType]; done {
+				continue
+			}
+			for _, m := range allModels {
+				if m.Type == sm.ModelType {
+					byType[sm.ModelType] = append(byType[sm.ModelType], m)
+				}
+			}
+			if byType[sm.ModelType] == nil {
+				byType[sm.ModelType] = []InvokeModel{} // mark as looked up
+			}
+		}
+	}
+
 	h.render(w, "setup.html", map[string]any{
-		"Title":          "Quick Setup",
-		"Nav":            "setup",
-		"Presets":        Presets,
-		"InvokeModels":   invokeModels,
-		"Qwen3Encoders":  qwen3Encoders,
-		"FluxVAEs":       fluxVAEs,
+		"Title":         "Quick Setup",
+		"Nav":           "setup",
+		"Presets":       Presets,
+		"InvokeModels":  invokeModels,
+		"Qwen3Encoders": qwen3Encoders,
+		"FluxVAEs":      fluxVAEs,
+		"ModelsByType":  byType,
 	})
 }
 
@@ -463,32 +482,51 @@ func (h *Handler) setupInstall(w http.ResponseWriter, r *http.Request) {
 	dir := filepath.Join(h.cfg.DataDir, "workflows")
 	os.MkdirAll(dir, 0o755)
 
-	// Patch model reference into workflow JSON
-	wfData := preset.WorkflowJSON
-	if modelKey != "" {
-		wfData = patchModelRef(wfData, modelKey, modelName, modelHash, modelBase)
+	// Both the txt2img workflow and its img2img companion get the same model
+	// and sub-model references patched in.
+	sheets := map[string]string{preset.WorkflowFile: preset.WorkflowJSON}
+	if preset.EditWorkflowFile != "" {
+		sheets[preset.EditWorkflowFile] = preset.EditWorkflowJSON
 	}
 
-	// Patch sub-models based on architecture
-	switch presetID {
-	case "flux":
-		wfData = h.patchSubModels(r.Context(), wfData, []subModelSpec{
-			{"t5_encoder_model", "t5_encoder", "flux"},
-			{"clip_embed_model", "clip_embed", "flux"},
-			{"vae_model", "vae", "flux"},
-		})
-	case "zimage", "flux2klein":
-		// Use user-selected qwen3 encoder and VAE
-		qwen3Key := r.FormValue("qwen3_key")
-		qwen3Name := r.FormValue("qwen3_name")
-		qwen3Hash := r.FormValue("qwen3_hash")
-		vaeKey := r.FormValue("vae_key")
-		vaeName := r.FormValue("vae_name")
-		vaeHash := r.FormValue("vae_hash")
-		wfData = h.patchManualSubModels(wfData, qwen3Key, qwen3Name, qwen3Hash, vaeKey, vaeName, vaeHash)
+	// Sub-models the user picked, keyed by the loader field they fill.
+	subRefs := map[string]any{}
+	for _, sm := range preset.SubModels {
+		key := r.FormValue("sub_" + sm.Field + "_key")
+		if key == "" {
+			continue // left on "auto"; the main model has to bundle it
+		}
+		subRefs[sm.Field] = map[string]any{
+			"key":  key,
+			"name": r.FormValue("sub_" + sm.Field + "_name"),
+			"hash": r.FormValue("sub_" + sm.Field + "_hash"),
+			"base": sm.Base,
+			"type": sm.ModelType,
+		}
 	}
 
-	os.WriteFile(filepath.Join(dir, preset.WorkflowFile), []byte(wfData), 0o644)
+	for file, data := range sheets {
+		if modelKey != "" {
+			data = patchModelRef(data, modelKey, modelName, modelHash, modelBase)
+		}
+		if len(subRefs) > 0 {
+			data = patchLoaderFields(data, subRefs)
+		}
+		// Presets without declared sub-models resolve theirs automatically.
+		switch presetID {
+		case "flux":
+			data = h.patchSubModels(r.Context(), data, []subModelSpec{
+				{"t5_encoder_model", "t5_encoder", "flux"},
+				{"clip_embed_model", "clip_embed", "flux"},
+				{"vae_model", "vae", "flux"},
+			})
+		case "zimage", "flux2klein":
+			data = h.patchManualSubModels(data,
+				r.FormValue("qwen3_key"), r.FormValue("qwen3_name"), r.FormValue("qwen3_hash"),
+				r.FormValue("vae_key"), r.FormValue("vae_name"), r.FormValue("vae_hash"))
+		}
+		os.WriteFile(filepath.Join(dir, file), []byte(data), 0o644)
+	}
 
 	// Register model
 	entry := preset.Entry
@@ -621,6 +659,33 @@ func (h *Handler) patchSubModels(ctx context.Context, wfJSON string, specs []sub
 				"key": m.Key, "name": m.Name, "base": m.Base, "type": m.Type, "hash": m.Hash,
 			}
 		}
+	}
+
+	patched, err := json.MarshalIndent(graph, "", "  ")
+	if err != nil {
+		return wfJSON
+	}
+	return string(patched)
+}
+
+// patchLoaderFields writes model references into the model_loader node.
+func patchLoaderFields(wfJSON string, fields map[string]any) string {
+	var graph map[string]any
+	if err := json.Unmarshal([]byte(wfJSON), &graph); err != nil {
+		return wfJSON
+	}
+
+	nodes, ok := graph["nodes"].(map[string]any)
+	if !ok {
+		return wfJSON
+	}
+	loader, ok := nodes["model_loader"].(map[string]any)
+	if !ok {
+		return wfJSON
+	}
+
+	for field, ref := range fields {
+		loader[field] = ref
 	}
 
 	patched, err := json.MarshalIndent(graph, "", "  ")

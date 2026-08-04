@@ -7,7 +7,7 @@
     <h3>1. Choose Workflow Preset</h3>
     <div class="form-group">
       <label>Architecture</label>
-      <select name="preset">
+      <select name="preset" id="preset-select" onchange="showSubModels(this.value)">
         {{range .Presets}}
         <option value="{{.ID}}">{{.Label}}</option>
         {{end}}
@@ -70,6 +70,30 @@
     {{end}}
   </div>
 
+  {{range .Presets}}{{if .SubModels}}
+  <div class="card preset-submodels" data-preset="{{.ID}}" style="display:none">
+    <h3>2c. Sub-Models ({{.Label}})</h3>
+    {{$id := .ID}}
+    {{range .SubModels}}
+    <div class="form-group">
+      <label>{{.Label}}</label>
+      <select name="sub_{{.Field}}_key" onchange="var o=this.options[this.selectedIndex],p=this.parentNode; p.querySelector('[name=sub_{{.Field}}_name]').value=o.dataset.name||''; p.querySelector('[name=sub_{{.Field}}_hash]').value=o.dataset.hash||''">
+        <option value="">&mdash; none (bundled with the model) &mdash;</option>
+        {{range (index $.ModelsByType .ModelType)}}
+        <option value="{{.Key}}" data-name="{{.Name}}" data-hash="{{.Hash}}">{{.Name}} ({{.Base}})</option>
+        {{end}}
+      </select>
+      <input type="hidden" name="sub_{{.Field}}_name" value="">
+      <input type="hidden" name="sub_{{.Field}}_hash" value="">
+      {{if .Hint}}<small>{{.Hint}}</small>{{end}}
+      {{if not (index $.ModelsByType .ModelType)}}
+      <small style="color:var(--warning)">No {{.ModelType}} model installed in InvokeAI.</small>
+      {{end}}
+    </div>
+    {{end}}
+  </div>
+  {{end}}{{end}}
+
   <div class="card">
     <h3>3. Model ID (optional)</h3>
     <div class="form-group">
@@ -80,4 +104,18 @@
 
   <button type="submit" class="btn">Install Preset</button>
 </form>
+
+<script>
+  // Only the selected architecture's sub-model pickers are relevant.
+  function showSubModels(preset) {
+    document.querySelectorAll('.preset-submodels').forEach(function (el) {
+      el.style.display = el.dataset.preset === preset ? '' : 'none';
+    });
+    var legacy = document.getElementById('submodels-section');
+    if (legacy) {
+      legacy.style.display = (preset === 'zimage' || preset === 'flux2klein') ? '' : 'none';
+    }
+  }
+  showSubModels(document.getElementById('preset-select').value);
+</script>
 {{end}}
