@@ -77,7 +77,12 @@ func (c *Client) EnqueueBatch(ctx context.Context, graph Graph) (*EnqueueBatchRe
 // UploadImage stores an image in InvokeAI and returns its image_name, which is
 // what an ImageField in a graph refers to. Graph fields cannot carry raw image
 // bytes, so any input image has to be uploaded first.
-func (c *Client) UploadImage(ctx context.Context, data []byte, filename string) (string, error) {
+//
+// A non-zero width and height makes InvokeAI resize the image on the way in.
+// img2img needs this: the latents an i2l node produces carry the image's own
+// dimensions, and denoising fails on a tensor mismatch if the graph was told a
+// different width or height.
+func (c *Client) UploadImage(ctx context.Context, data []byte, filename string, width, height int) (string, error) {
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
 
@@ -91,6 +96,12 @@ func (c *Client) UploadImage(ctx context.Context, data []byte, filename string) 
 	}
 	if _, err := part.Write(data); err != nil {
 		return "", fmt.Errorf("write upload form: %w", err)
+	}
+	if width > 0 && height > 0 {
+		if err := mw.WriteField("resize_to",
+			fmt.Sprintf(`{"width":%d,"height":%d}`, width, height)); err != nil {
+			return "", fmt.Errorf("write resize_to: %w", err)
+		}
 	}
 	if err := mw.Close(); err != nil {
 		return "", err

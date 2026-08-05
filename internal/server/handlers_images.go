@@ -1,9 +1,14 @@
 package server
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"image"
+	_ "image/gif"  // register decoders for imageDimensions
+	_ "image/jpeg" //
+	_ "image/png"  //
 	"io"
 	"net/http"
 	"strconv"
@@ -59,17 +64,28 @@ func (s *Server) handleImageEdits(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.log.Info("image edit", "model", entry.ID, "workflow", workflowFile, "prompt", prompt, "n", n, "has_mask", maskData != nil)
+	// Without an explicit size the graph has to follow the image, not the other
+	// way round, or denoising fails on a tensor mismatch.
+	if width == 0 || height == 0 {
+		width, height, err = imageDimensions(imageData)
+		if err != nil {
+			s.writeError(w, http.StatusBadRequest, "invalid_request_error", "read image: "+err.Error())
+			return
+		}
+	}
+
+	s.log.Info("image edit", "model", entry.ID, "workflow", workflowFile, "prompt", prompt,
+		"n", n, "size", fmt.Sprintf("%dx%d", width, height), "has_mask", maskData != nil)
 
 	// A graph refers to images by name, so they have to be stored first.
-	imageName, err := s.invoke.UploadImage(r.Context(), imageData, "input.png")
+	imageName, err := s.invoke.UploadImage(r.Context(), imageData, "input.png", width, height)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, "server_error", "upload image: "+err.Error())
 		return
 	}
 	var maskName string
 	if maskData != nil {
-		maskName, err = s.invoke.UploadImage(r.Context(), maskData, "mask.png")
+		maskName, err = s.invoke.UploadImage(r.Context(), maskData, "mask.png", width, height)
 		if err != nil {
 			s.writeError(w, http.StatusInternalServerError, "server_error", "upload mask: "+err.Error())
 			return
@@ -155,9 +171,18 @@ func (s *Server) handleImageVariations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.log.Info("image variation", "model", entry.ID, "workflow", workflowFile, "n", n)
+	if width == 0 || height == 0 {
+		width, height, err = imageDimensions(imageData)
+		if err != nil {
+			s.writeError(w, http.StatusBadRequest, "invalid_request_error", "read image: "+err.Error())
+			return
+		}
+	}
 
-	imageName, err := s.invoke.UploadImage(r.Context(), imageData, "input.png")
+	s.log.Info("image variation", "model", entry.ID, "workflow", workflowFile,
+		"n", n, "size", fmt.Sprintf("%dx%d", width, height))
+
+	imageName, err := s.invoke.UploadImage(r.Context(), imageData, "input.png", width, height)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, "server_error", "upload image: "+err.Error())
 		return
@@ -212,6 +237,16 @@ func imageField(imageName string) map[string]any {
 	return map[string]any{"image_name": imageName}
 }
 
+// imageDimensions reads width and height from the header alone, without
+// decoding the pixels.
+func imageDimensions(data []byte) (int, int, error) {
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return 0, 0, err
+	}
+	return cfg.Width, cfg.Height, nil
+}
+
 func (s *Server) resolveModel(modelID string) (workflow.ModelEntry, bool) {
 	if modelID == "" {
 		models := s.registry.List()
@@ -224,12 +259,19 @@ func (s *Server) resolveModel(modelID string) (workflow.ModelEntry, bool) {
 }
 
 func readFormFile(r *http.Request, field string) ([]byte, error) {
-	file, _, err := r.FormFile(field)
-	if err != nil {
-		return nil, err
+	// A client sending several images names the parts "<field>[]" — that is what
+	// the OpenAI SDK does for a list, and what Open-WebUI's edit_image tool
+	// always does because it passes image_urls as a list. Only the first one is
+	// used; the graph has a single image input.
+	for _, name := range []string{field, field + "[]"} {
+		file, _, err := r.FormFile(name)
+		if err != nil {
+			continue
+		}
+		defer file.Close()
+		return io.ReadAll(file)
 	}
-	defer file.Close()
-	return io.ReadAll(file)
+	return nil, fmt.Errorf("no %q part in the form (accepted: %q, %q)", field, field, field+"[]")
 }
 
 func parseIntOr(s string, fallback int) int {
