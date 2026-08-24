@@ -4,6 +4,9 @@ OpenAI-compatible image API proxy for [InvokeAI](https://github.com/invoke-ai/In
 
 Allows tools like [Open-WebUI](https://github.com/open-webui/open-webui) and any other OpenAI Image API client to generate images via a local InvokeAI installation.
 
+![Admin dashboard](docs/admin-dashboard.png)
+
+
 ## Features
 
 - **OpenAI Image API** — `/v1/images/generations`, `/v1/images/edits`, `/v1/images/variations`
@@ -26,6 +29,11 @@ Allows tools like [Open-WebUI](https://github.com/open-webui/open-webui) and any
 # 2. Create a model mapping (set prompt/seed/size field paths)
 # 3. Configure your OpenAI client to use http://<host>:8080/v1
 ```
+
+Or skip the manual mapping entirely — **Quick Setup** installs a ready-made workflow preset for
+SDXL, Flux, Flux2 Klein, Z-Image, SD 1.5, Krea-2, Anima or Qwen Image against a model of your choice:
+
+![Quick Setup](docs/admin-setup.png)
 
 ### Open-WebUI Configuration
 
@@ -99,6 +107,11 @@ Either way the field paths used in the model registry refer to the graph form, i
 ## Model Registry
 
 Models are defined in `<data-dir>/registry.json`. Each model maps an ID to a workflow file and defines which graph nodes receive which parameters:
+
+![Registered models](docs/admin-models.png)
+
+The admin UI edits this registry directly, so the JSON below is what the table above writes:
+
 
 ```json
 {
